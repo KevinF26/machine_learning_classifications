@@ -1,0 +1,13 @@
+typedef struct DigitFeature{
+	int total_on;
+	int total_off;
+	double onlikelyhood;
+	double offlikelyhood;
+}DigitFeature;
+
+typedef struct DigitFeatureStore{
+	DigitFeature points[19][7];
+	int total_training_instances;
+	double likelyhood;
+}DigitFeatureStore;
+	

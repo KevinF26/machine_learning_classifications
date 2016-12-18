@@ -1,0 +1,284 @@
+#include<stdlib.h>
+#include<stdio.h>
+#include"naivebayes.h"
+#include<math.h>
+#include<string.h>
+#include<ctype.h>
+#define LAPLACE 100
+//global struct of features for each of digits 0-9
+//contains 2 dimensional array of points in data and whether on/off and total for that point
+DigitFeatureStore training_feats[10];
+
+//forward declarations
+void build_digit_feature_data();
+void test_classification();
+void print_heatmap();
+void print_heatmapof(int val);
+
+int main(int argc, char * argv[])
+{
+	build_digit_feature_data();
+	test_classification();
+	print_heatmap();
+}
+
+void print_heatmap()
+{
+	int i,j,k;
+	for(i=0;i<10;i++)
+	{
+		for(j=0;j<19;j++)
+		{
+			for(k=0;k<7;k++)
+			{
+				if(training_feats[i].points[j][k].onlikelyhood>0.5)
+					printf("1");
+				else
+					printf("0");
+			}
+			printf("\n");
+		}
+		printf("\n\n");
+	}
+}
+
+void print_heatmapof(int val)
+{
+	int i,j,k;
+	i=val;
+	printf("\n");
+	for(j=0;j<19;j++)
+        {
+        	for(k=0;k<28;k++)
+                {
+                	if(training_feats[i].points[j][k].onlikelyhood>0.5)
+                        	printf("1");
+			else
+                        	printf("0");
+                }
+                printf("\n");
+        }
+}
+
+void test_classification()
+{
+	int pixelsagreedon;
+	int numcorrect=0;
+	int numincorrect=0;
+	double probabilities[10];
+	double highestprob;
+	int correct_label,guess;
+	int total_correct=0;
+	int total_incorrect=0;
+	char pointvalues[19][28];
+	int i,j,k,l;
+	FILE * test_images;
+	FILE * test_labels;
+	char * label_line=NULL;
+        size_t label_len=0;
+        ssize_t label_read;
+        char * image_line=NULL;
+        size_t image_len=0;
+        ssize_t image_read;
+	char whitespace;
+	int sum;
+
+	test_images=fopen("./digitdata/testimages","r");
+        if(test_images==NULL)
+                exit(EXIT_FAILURE);
+        test_labels=fopen("./digitdata/testlabels","r");
+        if(test_labels==NULL)
+                exit(EXIT_FAILURE);
+	
+	
+	while((label_read=getline(&label_line, &label_len, test_labels)) !=-1)
+        {
+		whitespace=1;
+                //-48 to get non-ascii value
+                correct_label=label_line[0]-48;
+		//strip whitespace
+		while(whitespace)
+		{
+			image_read=getline(&image_line,&image_len,test_images);
+			for(i=0;i<strlen(image_line);i++)
+			{
+				if(!isspace(image_line[i]))
+				{
+					whitespace=0;
+					break;
+				}
+			}
+		}
+		//populate pointvalues with current testimage features
+                for(i=0;i<19;i++)
+                {
+                        if(image_read==-1)
+                        {
+                                break;
+                        }
+
+                        for(j=0;j<7;j++)
+                        {
+				sum=0;
+				for(k=0;k<4;k++)
+				{
+                                	if(image_line[4*j+k]=='+' || image_line[4*j+k]=='#')
+					{
+						sum++;
+					}
+				}
+				if(sum>=2)
+					pointvalues[i][j]=1;
+                        }
+//			printf("\n");
+			image_read=getline(&image_line,&image_len,test_images);
+                }
+		//calculate probabilities for each label
+		for(i=0;i<10;i++)
+        	{
+			pixelsagreedon=0;
+                	probabilities[i]=log(training_feats[i].likelyhood);
+                	for(j=0;j<19;j++)
+                	{
+                	        for(k=0;k<7;k++)
+                	        {
+					if(pointvalues[i][j]==1)
+					{
+                	                        probabilities[i]+=log(training_feats[i].points[j][k].onlikelyhood);
+						if(training_feats[i].points[j][k].onlikelyhood>0.5)
+							pixelsagreedon++;
+					}
+                	                else
+					{
+                	                        probabilities[i]+=log(training_feats[i].points[j][k].offlikelyhood);
+						if(training_feats[i].points[j][k].offlikelyhood>0.5)
+							pixelsagreedon++;
+					}
+                	        }
+                	}
+			printf("pixels agreed on for %d=%d\n",i,pixelsagreedon);
+        	}
+//		print_heatmapof(correct_label);
+		for(i=0;i<10;i++)
+		{
+			printf("probability of %d=%f\n",i,probabilities[i]);
+		}
+		//determine most likely label to guess
+		highestprob=-INFINITY;
+		for(i=0;i<10;i++)
+		{
+			if(probabilities[i]>highestprob)
+			{
+				highestprob=probabilities[i];
+				guess=i;
+			}
+		}
+//		printf("guess=%d\n\n",guess);
+		printf("guess=%d,correct=%d\n",guess,correct_label);
+		if(guess==correct_label)
+			numcorrect++;
+		else
+			numincorrect++;
+        }
+	printf("numcorrect=%d,numincorrect=%d\n",numcorrect,numincorrect);
+}
+
+void build_digit_feature_data()
+{
+	int i,j,k;
+	int num_training_instances=0;
+	char active_label=-1;
+	FILE *training_images;
+	FILE *training_labels;
+	char * label_line=NULL;
+	size_t label_len=0;
+	ssize_t label_read;
+	char * image_line=NULL;
+        size_t image_len=0;
+        ssize_t image_read;
+	char whitespace;
+	int sum=0;
+	
+	//these fopen commands are unique to my directory structure
+	//folder hosting the executable should contain directories for digitdata and facedata
+	training_images=fopen("./digitdata/trainingimages","r");
+	if(training_images==NULL)
+		exit(EXIT_FAILURE);
+	training_labels=fopen("./digitdata/traininglabels","r");
+	if(training_labels==NULL)
+		exit(EXIT_FAILURE);
+	
+//	printf("before training training_feats[4].points[10][10].total_on,off=%d,%d\n",training_feats[4].points[10][10].total_on,training_feats[4].points[10][10].total_off);	
+	//read through every training label/image and store total_on/off in feats
+	while((label_read=getline(&label_line, &label_len, training_labels)) !=-1) 
+	{
+		num_training_instances++;
+
+		//-48 to get non-ascii value
+		active_label=label_line[0]-48;
+		training_feats[active_label].total_training_instances++;
+		//strip whitespace
+		whitespace=1;
+                while(whitespace)
+                {
+                        image_read=getline(&image_line,&image_len,training_images);
+                        for(i=0;i<strlen(image_line);i++)
+                        {
+                                if(!isspace(image_line[i]))
+				{
+					whitespace=0;
+                                        break;
+				}
+                        }
+                }
+		for(i=0;i<19;i++)
+		{
+			image_read=getline(&image_line,&image_len,training_images);
+			if(image_read==-1)
+			{
+				break;
+			}
+
+			for(j=0;j<7;j++)
+			{
+				sum=0;
+				for(k=0;k<4;k++)
+				{
+					if(image_line[4*j+k]=='+' || image_line[4*j+k]=='#')
+						sum++;
+				}
+				if(sum>=2)
+					training_feats[active_label].points[i][j].total_on++;
+				else
+					training_feats[active_label].points[i][j].total_off++;
+			}
+		}
+	}
+	//calculate likelyhood doubles
+	for(i=0;i<10;i++)
+	{
+		training_feats[i].likelyhood=((double)training_feats[i].total_training_instances/num_training_instances);
+		for(j=0;j<19;j++)
+		{
+			for(k=0;k<7;k++)
+			{
+				DigitFeature * temp=&training_feats[i].points[j][k];
+				//if(temp->total_on>0)
+					temp->onlikelyhood=(double)(temp->total_on+LAPLACE)/(training_feats[i].total_training_instances+LAPLACE);
+				//else
+				//	temp->onlikelyhood=(double)1/training_feats[i].total_training_instances;
+				//if(temp->total_off>0)
+					temp->offlikelyhood=(double)(temp->total_off+LAPLACE)/(training_feats[i].total_training_instances+LAPLACE);
+				//else
+				//	temp->offlikelyhood=(double)1/training_feats[i].total_training_instances;
+				
+			}
+		}
+	}
+//	printf("after training feats[4].points[10][10].likelyhood on,off=%f,%f\n",training_feats[4].points[10][10].onlikelyhood,training_feats[4].points[10][10].offlikelyhood);
+	fclose(training_labels);
+	if(image_line)
+		free(image_line);
+	if(label_line)
+		free(label_line);
+}

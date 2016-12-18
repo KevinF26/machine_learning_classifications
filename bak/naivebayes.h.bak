@@ -1,0 +1,34 @@
+typedef struct DigitPoint{
+	int total_on;
+	int total_off;
+	double onlikelyhood;
+	double offlikelyhood;
+}DigitPoint;
+
+typedef struct DigitLine{
+	int num_on[28];
+	int num_on_sets[4];
+	double num_on_likelyhoods[28];
+	double num_on_sets_likelyhoods[4];
+	int width[28];
+	double width_likelyhoods[28];
+}DigitLine;
+
+typedef struct DigitFeatureStore{
+	DigitPoint points[19][28];
+	DigitLine lines[19];
+	int max_width[28];
+	int min_width[28];
+	int avg_width[28];
+	double max_width_likelyhoods[28];
+	double min_width_likelyhoods[28];
+	double avg_width_likelyhoods[28];
+	int total_training_instances;
+	double likelyhood;
+}DigitFeatureStore;
+
+typedef struct DigitBitMap{
+	char pixels[19][28];
+	
+	
+}DigitBitMap;	

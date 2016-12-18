@@ -1,0 +1,375 @@
+#include<stdlib.h>
+#include<stdio.h>
+#include"naivebayes.h"
+#include<math.h>
+#include<string.h>
+#include<ctype.h>
+#define LAPLACE 1
+#define NUM_ON 0
+#define NUM_SETS_ON 1
+#define LINE_WIDTH 2
+//global struct of features for each of digits 0-9
+//contains 2 dimensional array of points in data and whether on/off and total for that point
+DigitFeatureStore training_feats[10];
+
+//forward declarations
+void build_digit_feature_data();
+void test_classification();
+void print_heatmap();
+void print_heatmapof(int val);
+
+int main(int argc, char * argv[])
+{
+	build_digit_feature_data();
+	test_classification();
+//	print_heatmap();
+}
+
+void print_heatmap()
+{
+	int i,j,k;
+	for(i=0;i<10;i++)
+	{
+		for(j=0;j<19;j++)
+		{
+			for(k=0;k<28;k++)
+			{
+				if(training_feats[i].points[j][k].onlikelyhood>0.5)
+					printf("1");
+				else
+					printf("0");
+			}
+			printf("\n");
+		}
+		printf("\n\n");
+	}
+}
+
+void print_heatmapof(int val)
+{
+	int i,j,k;
+	i=val;
+	printf("\n");
+	for(j=0;j<19;j++)
+        {
+        	for(k=0;k<28;k++)
+                {
+                	if(training_feats[i].points[j][k].onlikelyhood>0.5)
+                        	printf("1");
+			else
+                        	printf("0");
+                }
+                printf("\n");
+        }
+}
+
+void test_classification()
+{
+	int pixelsagreedon;
+	int prev;
+	int numcorrect=0;
+	int numincorrect=0;
+	double probabilities[10];
+	double highestprob;
+	int correct_label,guess;
+	int total_correct=0;
+	int total_incorrect=0;
+	char pointvalues[19][28];
+	char lineData[19][3];
+	int i,j,k;
+	FILE * test_images;
+	FILE * test_labels;
+	char * label_line=NULL;
+        size_t label_len=0;
+        ssize_t label_read;
+        char * image_line=NULL;
+        size_t image_len=0;
+        ssize_t image_read;
+	char whitespace;
+	int minindex,maxindex;
+	int minwidth,maxwidth;
+	int widthsum,avgwidth;
+
+	test_images=fopen("./digitdata/testimages","r");
+        if(test_images==NULL)
+                exit(EXIT_FAILURE);
+        test_labels=fopen("./digitdata/testlabels","r");
+        if(test_labels==NULL)
+                exit(EXIT_FAILURE);
+	
+	while((label_read=getline(&label_line, &label_len, test_labels)) !=-1)
+        {
+		minwidth=28;
+		maxwidth=0;
+		widthsum=0;
+		avgwidth=0;
+		for(i=0;i<19;i++)
+		{
+			lineData[i][0]=0;
+			lineData[i][1]=0;
+			lineData[i][2]=0;
+		}
+
+		whitespace=1;
+                //-48 to get non-ascii value
+                correct_label=label_line[0]-48;
+		//strip whitespace
+		while(whitespace)
+		{
+			image_read=getline(&image_line,&image_len,test_images);
+			for(i=0;i<strlen(image_line);i++)
+			{
+				if(!isspace(image_line[i]))
+				{
+					whitespace=0;
+					break;
+				}
+			}
+		}
+		//populate pointvalues with current testimage features
+                for(i=0;i<19;i++)
+                {
+			prev=0;
+			minindex=0;
+			maxindex=0;
+                        if(image_read==-1)
+                        {
+                                break;
+                        }
+			
+                        for(j=0;j<28;j++)
+                        {
+                                if(image_line[j]=='+' || image_line[j]=='#')
+				{
+					maxindex=j;
+					if(minindex==0)
+						minindex=j;
+                                        pointvalues[i][j]=1;
+//					printf("1");
+					lineData[i][NUM_ON]++;
+					if(prev==0)
+					{
+						prev=1;
+						lineData[i][NUM_SETS_ON]++;
+					}
+				}
+                                else
+				{
+					prev=0;
+                                        pointvalues[i][j]=0;
+//					printf("0");
+				}
+                        }
+			if(maxindex==0)
+				lineData[i][LINE_WIDTH]=0;
+			else
+			{
+				lineData[i][LINE_WIDTH]=maxindex+1-minindex;
+				if((maxindex-minindex)<minwidth)
+					minwidth=maxindex-minindex;
+				if((maxindex-minindex)>maxwidth)
+					maxwidth=maxindex-minindex;
+				widthsum+=maxindex-minindex;
+			}
+//			printf("\n");
+			image_read=getline(&image_line,&image_len,test_images);
+                }
+		avgwidth=(int)widthsum/19;
+		//calculate probabilities for each label
+		for(i=0;i<10;i++)
+        	{
+			pixelsagreedon=0;
+                	probabilities[i]=log(training_feats[i].likelyhood);
+			probabilities[i]+=log(training_feats[i].max_width_likelyhoods[maxwidth]);
+			probabilities[i]+=log(training_feats[i].min_width_likelyhoods[minwidth]);
+			//probabilities[i]+=log(training_feats[i].avg_width_likelyhoods[avgwidth]);
+                	for(j=0;j<19;j++)
+                	{
+					probabilities[i]+=log(training_feats[i].lines[j].num_on_likelyhoods[lineData[j][NUM_ON]]);
+					probabilities[i]+=log(training_feats[i].lines[j].num_on_sets_likelyhoods[lineData[j][NUM_SETS_ON]%4]);
+					probabilities[i]+=log(training_feats[i].lines[j].width_likelyhoods[lineData[j][LINE_WIDTH]]);
+					
+                	        for(k=0;k<28;k++)
+                	        {
+					if(pointvalues[i][j]==1)
+					{
+                	                 //       probabilities[i]+=log(training_feats[i].points[j][k].onlikelyhood);
+						if(training_feats[i].points[j][k].onlikelyhood>0.5)
+							pixelsagreedon++;
+					}
+                	                else
+					{
+                	                 //       probabilities[i]+=log(training_feats[i].points[j][k].offlikelyhood);
+						if(training_feats[i].points[j][k].offlikelyhood>0.5)
+							pixelsagreedon++;
+					}
+                	        }
+                	}
+		//	printf("pixels agreed on for %d=%d\n",i,pixelsagreedon);
+        	}
+//		print_heatmapof(correct_label);
+		for(i=0;i<10;i++)
+		{
+//			printf("probability of %d=%f\n",i,probabilities[i]);
+		}
+		//determine most likely label to guess
+		highestprob=-INFINITY;
+		for(i=0;i<10;i++)
+		{
+			if(probabilities[i]>highestprob)
+			{
+				highestprob=probabilities[i];
+				guess=i;
+			}
+		}
+//		printf("guess=%d,correct=%d\n",guess,correct_label);
+		if(guess==correct_label)
+			numcorrect++;
+		else
+			numincorrect++;
+        }
+	printf("numcorrect=%d,numincorrect=%d\n",numcorrect,numincorrect);
+}
+
+void build_digit_feature_data()
+{
+	int i,j,k;
+	int num_training_instances=0;
+	char active_label=-1;
+	FILE *training_images;
+	FILE *training_labels;
+	char * label_line=NULL;
+	size_t label_len=0;
+	ssize_t label_read;
+	char * image_line=NULL;
+        size_t image_len=0;
+        ssize_t image_read;
+	char whitespace;
+	int prev;
+	int num_on_line;
+	int num_sets_line;
+	int minindex,maxindex;
+	int minwidth=28,maxwidth=0;
+	int widthsum;
+	
+	//these fopen commands are unique to my directory structure
+	//folder hosting the executable should contain directories for digitdata and facedata
+	training_images=fopen("./digitdata/trainingimages","r");
+	if(training_images==NULL)
+		exit(EXIT_FAILURE);
+	training_labels=fopen("./digitdata/traininglabels","r");
+	if(training_labels==NULL)
+		exit(EXIT_FAILURE);
+	
+//	printf("before training training_feats[4].points[10][10].total_on,off=%d,%d\n",training_feats[4].points[10][10].total_on,training_feats[4].points[10][10].total_off);	
+	//read through every training label/image and store total_on/off in feats
+	while((label_read=getline(&label_line, &label_len, training_labels)) !=-1) 
+	{
+		num_training_instances++;
+
+		//-48 to get non-ascii value
+		active_label=label_line[0]-48;
+		training_feats[active_label].total_training_instances++;
+		//strip whitespace
+		whitespace=1;
+                while(whitespace)
+                {
+                        image_read=getline(&image_line,&image_len,training_images);
+                        for(i=0;i<strlen(image_line);i++)
+                        {
+                                if(!isspace(image_line[i]))
+				{
+					whitespace=0;
+                                        break;
+				}
+                        }
+                }
+		widthsum=0;
+		maxwidth=0;
+		minwidth=28;
+		for(i=0;i<19;i++)
+		{
+			num_on_line=0;
+			num_sets_line=0;
+			minindex=0;
+			maxindex=0;
+			prev=0;
+			image_read=getline(&image_line,&image_len,training_images);
+			if(image_read==-1)
+			{
+				break;
+			}
+
+			for(j=0;j<28;j++)
+			{
+				if(image_line[j]=='+' || image_line[j]=='#')
+				{
+					if(minindex==0)
+						minindex=j;
+					maxindex=j;
+					training_feats[active_label].points[i][j].total_on++;
+					num_on_line++;
+					if(prev==0)
+					{
+						prev=1;
+						num_sets_line++;
+					}
+				}
+				else
+				{
+					training_feats[active_label].points[i][j].total_off++;
+					prev=0;
+				}
+			}
+			widthsum+=maxindex-minindex;
+			if(maxindex==0)
+				training_feats[active_label].lines[i].width[0]++;
+			else
+				training_feats[active_label].lines[i].width[maxindex-minindex]++;
+			if(maxindex>=1 && (maxindex-minindex)<minwidth)
+				minwidth=maxindex-minindex;
+			if((maxindex-minindex)>maxwidth)
+				maxwidth=maxindex-minindex;
+			training_feats[active_label].lines[i].num_on[num_on_line]++;
+			training_feats[active_label].lines[i].num_on_sets[num_sets_line%4]++;
+		}
+		training_feats[active_label].avg_width[(int)widthsum/19]++;
+		training_feats[active_label].max_width[maxwidth]++;
+		training_feats[active_label].min_width[minwidth]++;
+	}
+	//calculate likelyhood doubles
+	for(i=0;i<10;i++)
+	{
+		training_feats[i].likelyhood=((double)training_feats[i].total_training_instances/num_training_instances);
+		for(j=0;j<28;j++)
+		{
+			training_feats[i].min_width_likelyhoods[j]=((double)(training_feats[i].min_width[j]+LAPLACE)/(training_feats[i].total_training_instances+LAPLACE));
+			training_feats[i].max_width_likelyhoods[j]=((double)(training_feats[i].max_width[j]+LAPLACE)/(training_feats[i].total_training_instances+LAPLACE));
+			training_feats[i].avg_width_likelyhoods[j]=((double)(training_feats[i].avg_width[j]+LAPLACE)/(training_feats[i].total_training_instances+LAPLACE));
+		}
+		for(j=0;j<19;j++)
+		{
+			DigitLine * tempLine=&training_feats[i].lines[j];
+			for(k=0;k<4;k++)
+			{
+				tempLine->num_on_sets_likelyhoods[k]=(double)(tempLine->num_on_sets[k]+LAPLACE)/(training_feats[i].total_training_instances+LAPLACE);
+			}
+			for(k=0;k<28;k++)
+			{
+				tempLine->num_on_likelyhoods[k]=(double)(tempLine->num_on[k]+LAPLACE)/(training_feats[i].total_training_instances+LAPLACE);
+				tempLine->width_likelyhoods[k]=(double)(tempLine->width[k]+LAPLACE)/(training_feats[i].total_training_instances+LAPLACE);
+
+				DigitPoint * tempPoint=&training_feats[i].points[j][k];
+					tempPoint->onlikelyhood=(double)(tempPoint->total_on+LAPLACE)/(training_feats[i].total_training_instances+LAPLACE);
+					tempPoint->offlikelyhood=(double)(tempPoint->total_off+LAPLACE)/(training_feats[i].total_training_instances+LAPLACE);
+				
+			}
+		}
+	}
+//	printf("after training feats[4].points[10][10].likelyhood on,off=%f,%f\n",training_feats[4].points[10][10].onlikelyhood,training_feats[4].points[10][10].offlikelyhood);
+	fclose(training_labels);
+	if(image_line)
+		free(image_line);
+	if(label_line)
+		free(label_line);
+}
