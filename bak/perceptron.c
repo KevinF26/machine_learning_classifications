@@ -71,7 +71,6 @@ void build_digit_feature_data()
 	while((label_read=getline(&label_line, &label_len, training_labels)) !=-1) 
 	//for(i=0;i<5000;i++)
 	{
-		label_read=getline(&label_line, &label_len, training_labels);
 
 		num_training_instances++;
 		memset(&curr,0,sizeof(DigitBitMapData));

@@ -2,8 +2,28 @@
 
 int main(int argc, char * argv[])
 {
+	double t1,t2;
+	TRAINING_SIZE=5000;
+        if(argc>1)
+        {
+                TRAINING_SIZE=atoi(argv[1]);
+                if(TRAINING_SIZE<0)
+                {
+                        printf("negative number entered for training size\n");
+                        exit(-1);
+                }
+                if(TRAINING_SIZE>5000)
+                {
+                        printf("max training size is 5000\n");
+                        exit(-1);
+                }
+        }
+
+	t1=get_time();
 	build_digit_feature_data();
 	test_classification();
+	t2=get_time();
+	printf("elapsed time=%fs\n",t2-t1);	
 }
 
 
@@ -47,6 +67,7 @@ void test_classification()
 	}
 	int i;
 	printf("numcorrect=%d,numincorrect=%d\n",numcorrect,numincorrect);
+	printf("success rate=%.4g%%\n",(float)numcorrect*100/(numcorrect+numincorrect));
 }
 
 void build_digit_feature_data()

@@ -3,6 +3,8 @@
 #include<math.h>
 #include<string.h>
 #include<ctype.h>
+#include<sys/time.h>
+#include<sys/resource.h>
 	
 typedef struct DigitRowFeats{
 	int num_on[28];
@@ -75,6 +77,8 @@ void calculate_likelyhoods();
 void add_features();
 void extract_features(FILE * training_images);
 int predict();
+double get_time();
+int training_size;
 
 #define LAPLACE 1
 #define NUM_ON 0

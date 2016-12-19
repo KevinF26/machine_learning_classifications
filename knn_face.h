@@ -5,8 +5,8 @@
 #include<ctype.h>
 #include<time.h>
 #include<limits.h>
-#define TRAINING_SIZE 450
-
+#include<sys/time.h>
+#include<sys/resource.h>
 
 typedef struct FaceBitMapData{
         int pixels[66][60];
@@ -19,7 +19,8 @@ void build_face_feature_data();
 void test_classification();
 void update_weights(int,int);
 void initialize_weight_vector();
+double get_time();
 
 
-
-FaceBitMapData * neighbors[TRAINING_SIZE];
+FaceBitMapData * neighbors[450];
+int TRAINING_SIZE;

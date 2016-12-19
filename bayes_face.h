@@ -3,6 +3,8 @@
 #include<math.h>
 #include<string.h>
 #include<ctype.h>
+#include<sys/time.h>
+#include<sys/resource.h>
 	
 typedef struct FaceRowFeats{
 	int num_on[60];
@@ -75,6 +77,7 @@ void calculate_likelyhoods();
 void add_features();
 void extract_features(FILE * training_images);
 int predict();
+double get_time();
 
 #define LAPLACE 1
 #define NUM_ON 0
@@ -84,3 +87,5 @@ int predict();
 //global struct of features for each of faces 0-1
 FaceFeatureStore training_feats[2];
 FaceBitMapData curr;
+
+int training_size;

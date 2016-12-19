@@ -5,7 +5,8 @@
 #include<ctype.h>
 #include<time.h>
 #include<limits.h>
-#define TRAINING_SIZE 5000
+#include<sys/time.h>
+#include<sys/resource.h>
 
 
 typedef struct DigitBitMapData{
@@ -19,7 +20,7 @@ void build_digit_feature_data();
 void test_classification();
 void update_weights(int,int);
 void initialize_weight_vector();
+double get_time();
 
-
-
-DigitBitMapData * neighbors[TRAINING_SIZE];
+int TRAINING_SIZE;
+DigitBitMapData * neighbors[5000];

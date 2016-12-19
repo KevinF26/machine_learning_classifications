@@ -19,7 +19,7 @@ int predict(DigitBitMapData * curr)
 	double currdistance;
 	int guess=-1;
 	int i;
-	for(i=0;i<5000;i++)
+	for(i=0;i<TRAINING_SIZE;i++)
 	{
 		currdistance=euclidean_distance(curr->pixels,neighbors[i]->pixels);
 		if(currdistance<mindistance)
@@ -81,4 +81,11 @@ void extract_features(FILE * imagesfd, DigitBitMapData * curr)
 		}
 	}
 	
+}
+double get_time()
+{
+    struct timeval t;
+    struct timezone tzp;
+    gettimeofday(&t, &tzp);
+    return t.tv_sec + t.tv_usec*1e-6;
 }

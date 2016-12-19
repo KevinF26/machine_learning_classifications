@@ -18,4 +18,5 @@ knn_digit: knn_digits.c
 knn_face: knn_face.c
 	gcc -o knn_face knn_face.c knn_face_util.c -lm
 
-
+clean:
+	rm bayes_digit bayes_face perceptron_digit perceptron_face knn_digit knn_face

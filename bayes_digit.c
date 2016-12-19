@@ -2,8 +2,27 @@
 
 int main(int argc, char * argv[])
 {
+	double t1,t2;
+	training_size=5000;
+	if(argc>1)
+	{
+		training_size=atoi(argv[1]);
+		if(training_size<0)
+		{
+			printf("negative number entered for training size\n");
+			exit(-1);
+		}
+		if(training_size>5000)
+		{
+			printf("max training size is 5000\n");
+			exit(-1);
+			}
+	}
+	t1=get_time();
 	build_digit_feature_data();
 	test_classification();
+	t2=get_time();
+	printf("elapsed time=%fs\n",t2-t1);
 }
 
 
@@ -42,12 +61,13 @@ void test_classification()
 			numincorrect++;
 		}
 	}
-	int i;
 	printf("numcorrect=%d,numincorrect=%d\n",numcorrect,numincorrect);
+	printf("success rate=%.4g%%\n",(float)numcorrect*100/(numcorrect+numincorrect));
 }
 
 void build_digit_feature_data()
 {
+	int i;
 	int num_training_instances=0;
 	FILE * training_images;
 	FILE * training_labels;
@@ -63,9 +83,8 @@ void build_digit_feature_data()
 	if(training_labels==NULL)
 		exit(EXIT_FAILURE);
 
-	int i;
 	//while((label_read=getline(&label_line, &label_len, training_labels)) !=-1) 
-	for(i=0;i<5000;i++)
+	for(i=0;i<training_size;i++)
 	{
 		label_read=getline(&label_line, &label_len, training_labels);
 
